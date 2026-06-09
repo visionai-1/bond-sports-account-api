@@ -173,5 +173,13 @@ Errors use Nest's standard structure, produced by the framework's default except
 }
 ```
 
-> Status code choices (e.g. `409` vs `422`) are finalized during implementation; the mapping
-> above is the intended convention.
+For DTO/param validation failures (`400`), the framework's `ValidationPipe` returns `message` as
+an **array** of field-level messages, e.g.:
+
+```json
+{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "message": ["amount must be a number string"]
+}
+```

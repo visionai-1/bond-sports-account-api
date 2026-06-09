@@ -378,6 +378,29 @@ all tests pass
 
 ---
 
+## E2E Tests
+
+`npm test` runs unit tests only. The E2E suite (`tests/e2e`) drives the real Nest app over HTTP
+against a **dedicated** PostgreSQL database `bond_sports_account_e2e` (never the dev database). It
+needs the Docker DB running:
+
+```bash
+npm run dev:db            # starts PostgreSQL + pgAdmin
+npm run dev:db:e2e:create # create bond_sports_account_e2e (idempotent; safe if it already exists)
+npm run test:e2e          # run the E2E suite (--runInBand)
+```
+
+Notes:
+
+- The E2E DB name is `bond_sports_account_e2e` (override with `E2E_DB_NAME`).
+- Each E2E test truncates `transactions, accounts CASCADE` — this cleanup is guarded to run **only**
+  inside the E2E database, so the dev database is never touched.
+- `npm run test:all` runs unit tests then E2E.
+- `npm run dev:db:clean` deletes the PostgreSQL data **volume** (all local DBs) and is unrelated to
+  normal E2E execution — do not use it just to run E2E.
+
+---
+
 ## Troubleshooting
 
 ### PostgreSQL connection failed

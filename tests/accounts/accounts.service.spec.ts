@@ -1,12 +1,5 @@
-import { DataSource } from 'typeorm';
-import { AccountsService } from './accounts.service';
-import { AccountRepository } from './repositories/account.repository';
-import { TransactionRepository } from '../transactions/repositories/transaction.repository';
-import { AppLoggerService } from '../common/logging';
-import { Account } from './entities/account.entity';
-import { Transaction } from '../transactions/entities/transaction.entity';
-import { AccountType } from './enums/account-type.enum';
-import { TransactionType } from '../transactions/enums/transaction-type.enum';
+import { AccountType } from '../../src/accounts/enums/account-type.enum';
+import { TransactionType } from '../../src/transactions/enums/transaction-type.enum';
 import {
   AccountInactiveError,
   AccountNotFoundError,
@@ -14,83 +7,21 @@ import {
   InsufficientFundsError,
   InvalidAmountError,
   InvalidStatementPeriodError,
-} from '../common/errors';
-
-function buildAccount(overrides: Partial<Account> = {}): Account {
-  return {
-    accountId: 'acc-1',
-    personId: 'person-1',
-    balance: '100.0000',
-    dailyWithdrawalLimit: '1000.0000',
-    activeFlag: true,
-    accountType: AccountType.CHECKING,
-    createDate: new Date('2026-01-01T00:00:00.000Z'),
-    transactions: [],
-    ...overrides,
-  };
-}
-
-function buildTransaction(overrides: Partial<Transaction> = {}): Transaction {
-  return {
-    transactionId: 'tx-1',
-    accountId: 'acc-1',
-    value: '50.0000',
-    type: TransactionType.DEPOSIT,
-    transactionDate: new Date('2026-01-02T00:00:00.000Z'),
-    account: undefined as unknown as Account,
-    ...overrides,
-  };
-}
+} from '../../src/common/errors';
+import {
+  AccountsServiceHarness,
+  buildAccount,
+  buildTransaction,
+  createAccountsServiceHarness,
+} from '../shared';
 
 describe('AccountsService', () => {
-  let service: AccountsService;
-  let accountRepo: jest.Mocked<
-    Pick<
-      AccountRepository,
-      'createAccount' | 'findById' | 'findByIdForUpdate' | 'save'
-    >
-  >;
-  let txRepo: jest.Mocked<
-    Pick<
-      TransactionRepository,
-      'createInTransaction' | 'getTotalWithdrawals' | 'findByAccountAndPeriod'
-    >
-  >;
+  let service: AccountsServiceHarness['service'];
+  let accountRepo: AccountsServiceHarness['accountRepo'];
+  let txRepo: AccountsServiceHarness['txRepo'];
 
   beforeEach(() => {
-    accountRepo = {
-      createAccount: jest.fn(),
-      findById: jest.fn(),
-      findByIdForUpdate: jest.fn(),
-      save: jest.fn((_manager, account: Account) => Promise.resolve(account)),
-    };
-    txRepo = {
-      createInTransaction: jest.fn((_manager, data) =>
-        Promise.resolve(
-          buildTransaction({ type: data.type, value: data.value }),
-        ),
-      ),
-      getTotalWithdrawals: jest.fn(),
-      findByAccountAndPeriod: jest.fn(),
-    };
-
-    // transaction() simply runs the callback with a stub manager.
-    const dataSource = {
-      transaction: jest.fn((cb: (manager: unknown) => unknown) => cb({})),
-    } as unknown as DataSource;
-
-    const logger = {
-      log: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-    } as unknown as AppLoggerService;
-
-    service = new AccountsService(
-      dataSource,
-      accountRepo as unknown as AccountRepository,
-      txRepo as unknown as TransactionRepository,
-      logger,
-    );
+    ({ service, accountRepo, txRepo } = createAccountsServiceHarness());
   });
 
   // 1

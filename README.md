@@ -113,8 +113,11 @@ Password:             postgres
 | `npm start` | Run the API |
 | `npm run build` | Compile to `dist/` |
 | `npm run typecheck` | Type-check without emitting (`tsc --noEmit`) |
-| `npm test` | Run the Jest test suite |
+| `npm test` | Run the Jest unit test suite (2 suites / 23 tests) |
+| `npm run test:e2e` | Run the E2E suite against local PostgreSQL (1 suite / 5 tests) |
+| `npm run test:all` | Run unit tests, then E2E tests |
 | `npm run dev:db` | Start the local DB stack (PostgreSQL + pgAdmin) |
+| `npm run dev:db:e2e:create` | Create the dedicated E2E database (idempotent) |
 | `npm run dev:db:stop` | Stop the DB stack (keeps data) |
 | `npm run dev:db:down` | Remove DB containers (keeps the data volume) |
 | `npm run dev:db:clean` | Remove DB containers and **delete** the data volume |
@@ -122,6 +125,22 @@ Password:             postgres
 | `npm run dev:db:logs` | Follow PostgreSQL + pgAdmin logs |
 | `npm run dev:api` | Run the API on the host (alias for `start:dev`) |
 | `npm run dev:check` | Run typecheck + build + tests |
+
+### Testing
+
+- **Unit tests** (`npm test`) — the primary coverage. Service business rules and pipe-level
+  validation, fully mocked, no DB. Located under `tests/accounts`, `tests/common`, `tests/shared`.
+- **E2E tests** (`npm run test:e2e`) — a small suite that drives the real Nest app over HTTP
+  against a **dedicated** PostgreSQL database `bond_sports_account_e2e` (never the dev DB).
+  Located under `tests/e2e`.
+
+E2E requires the Docker database to be running:
+
+```bash
+npm run dev:db            # start PostgreSQL (+ pgAdmin)
+npm run dev:db:e2e:create # create bond_sports_account_e2e (idempotent)
+npm run test:e2e          # run the E2E suite
+```
 
 ## API Documentation
 
@@ -319,6 +338,9 @@ Errors use NestJS's standard error body (produced by the framework's default exc
   "message": "Insufficient balance"
 }
 ```
+
+Domain errors return `message` as a string (above). Validation failures (`400`) return `message`
+as an **array** of field-level messages (e.g. `["amount must be a number string"]`).
 
 | Condition | Status |
 |---|---|

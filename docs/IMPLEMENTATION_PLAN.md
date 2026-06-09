@@ -51,8 +51,12 @@ business logic in services, database access in repositories. No over-engineering
   Logger, no external logging infrastructure (see `DECISIONS.md`).
 
 ## 7. Tests
-- Implement the cases in `TEST_PLAN.md` (service unit tests + e2e for endpoints and statement).
+- Implement the cases in `TEST_PLAN.md` as unit tests under `tests/`: service-level unit tests for
+  business rules + pipe-level unit tests for request-boundary validation.
 - Include the rollback assertion (failed withdrawal changes nothing).
+- Add a small, focused E2E suite under `tests/e2e` (`@nestjs/testing` + `supertest` against a
+  dedicated PostgreSQL database) to prove HTTP routing/validation/DB wiring. Keep it minimal — one
+  happy path plus a few error boundaries; no heavy test infrastructure.
 
 ## 8. README API docs
 - Fill the README API Documentation section from `API.md` (request/response + error examples).

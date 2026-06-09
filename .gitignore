@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+.DS_Store
+
+# Company assignment brief — keep local, do not publish
+bond_sports_assignment.docx

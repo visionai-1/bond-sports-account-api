@@ -1,0 +1,474 @@
+{
+  "info": {
+    "_postman_id": "b0nd5p0r-7acc-4a01-9e7c-bond5port5api",
+    "name": "Bond Sports Account API",
+    "description": "Account management & banking transactions API (NestJS). Generated from the real implementation.\n\nBase URL: http://localhost:3000 (no global prefix).\n\nRun the **Happy Path** folder in order with the Collection Runner: Create Account auto-saves `accountId` into the environment, and the following requests reuse it. The **Error Cases** folder asserts the real validation/business errors.\n\nAll monetary amounts are JSON **strings** (e.g. \"100.00\") — the API uses @IsNumberString, so numeric literals are rejected with 400.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Happy Path",
+      "description": "Ordered flow: Create -> Get -> Deposit -> Withdraw -> Statement.",
+      "item": [
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('returns an accountId', () => pm.expect(res.accountId).to.be.a('string').and.not.empty);",
+                  "pm.test('balance starts at 0.0000', () => pm.expect(res.balance).to.eql('0.0000'));",
+                  "pm.test('account is active', () => pm.expect(res.activeFlag).to.eql(true));",
+                  "pm.environment.set('accountId', res.accountId);",
+                  "console.log('Saved accountId =', res.accountId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personId\": \"{{$guid}}\",\n  \"accountType\": \"CHECKING\",\n  \"dailyWithdrawalLimit\": \"1000.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Create a new account. accountType is CHECKING | SAVINGS; dailyWithdrawalLimit and all amounts are decimal strings."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('accountId matches saved id', () => pm.expect(res.accountId).to.eql(pm.environment.get('accountId')));",
+                  "pm.test('account is active', () => pm.expect(res.activeFlag).to.eql(true));",
+                  "pm.test('exposes a string balance', () => pm.expect(res.balance).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}"]
+            },
+            "description": "Retrieve an account and its current balance."
+          },
+          "response": []
+        },
+        {
+          "name": "Deposit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('records a DEPOSIT transaction', () => pm.expect(res.transaction.type).to.eql('DEPOSIT'));",
+                  "pm.test('transaction value is 250', () => pm.expect(Number(res.transaction.value)).to.eql(250));",
+                  "pm.test('balance is now 250.0000', () => pm.expect(res.balance).to.eql('250.0000'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"250.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}/deposit",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}", "deposit"]
+            },
+            "description": "Increase the balance and record a DEPOSIT transaction (atomic). Returns 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('records a WITHDRAWAL transaction', () => pm.expect(res.transaction.type).to.eql('WITHDRAWAL'));",
+                  "pm.test('transaction value is 50', () => pm.expect(Number(res.transaction.value)).to.eql(50));",
+                  "pm.test('balance is now 200.0000', () => pm.expect(res.balance).to.eql('200.0000'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"50.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}/withdraw",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}", "withdraw"]
+            },
+            "description": "Decrease the balance and record a WITHDRAWAL transaction (atomic). Validates: exists -> active -> positive -> sufficient balance -> daily limit. Returns 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Statement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('accountId matches', () => pm.expect(res.accountId).to.eql(pm.environment.get('accountId')));",
+                  "pm.test('transactions is an array', () => pm.expect(res.transactions).to.be.an('array'));",
+                  "pm.test('contains the deposit and withdrawal', () => {",
+                  "  const types = res.transactions.map(t => t.type);",
+                  "  pm.expect(types).to.include('DEPOSIT');",
+                  "  pm.expect(types).to.include('WITHDRAWAL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}/statement?from=2020-01-01&to=2030-01-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}", "statement"],
+              "query": [
+                { "key": "from", "value": "2020-01-01", "description": "Start of period (inclusive). ISO date/datetime. Required." },
+                { "key": "to", "value": "2030-01-01", "description": "End of period (inclusive). ISO date/datetime. Required." }
+              ]
+            },
+            "description": "List the account's transactions within [from, to]. Both query params are required ISO dates."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "description": "Negative scenarios asserting the real validation and business errors. Run after the Happy Path so {{accountId}} is set.",
+      "item": [
+        {
+          "name": "Deposit - invalid amount (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message: Amount must be positive', () => pm.expect(pm.response.json().message).to.eql('Amount must be positive'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"-10.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}/deposit",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}", "deposit"]
+            },
+            "description": "Non-positive amount. Passes @IsNumberString DTO check, then fails the service positivity check -> 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw - insufficient funds (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('message: Insufficient balance', () => pm.expect(pm.response.json().message).to.eql('Insufficient balance'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"100000.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}/withdraw",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}", "withdraw"]
+            },
+            "description": "Withdraw more than the current balance -> 422 Insufficient balance."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account - not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('message mentions not found', () => pm.expect(pm.response.json().message).to.include('not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/11111111-1111-4111-8111-111111111111",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "11111111-1111-4111-8111-111111111111"]
+            },
+            "description": "Well-formed but non-existent UUID -> 404 Account not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account - invalid id format (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/not-a-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "not-a-uuid"]
+            },
+            "description": "Malformed accountId rejected by ParseUUIDPipe -> 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Account - missing personId (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountType\": \"CHECKING\",\n  \"dailyWithdrawalLimit\": \"1000.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Missing required personId -> 400 (class-validator, message is an array)."
+          },
+          "response": []
+        },
+        {
+          "name": "Statement - invalid date range (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message: invalid statement period', () => pm.expect(pm.response.json().message).to.eql('Invalid statement period: \"from\" must not be after \"to\"'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}/statement?from=2030-01-01&to=2020-01-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}", "statement"],
+              "query": [
+                { "key": "from", "value": "2030-01-01" },
+                { "key": "to", "value": "2020-01-01" }
+              ]
+            },
+            "description": "from after to -> 400 Invalid statement period."
+          },
+          "response": []
+        },
+        {
+          "name": "Daily limit - setup: create low-limit account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('limitAccountId', res.accountId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personId\": \"{{$guid}}\",\n  \"accountType\": \"SAVINGS\",\n  \"dailyWithdrawalLimit\": \"100.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Setup for the daily-limit case: an account with a low daily withdrawal limit (100.00)."
+          },
+          "response": []
+        },
+        {
+          "name": "Daily limit - setup: fund the account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"500.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{limitAccountId}}/deposit",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{limitAccountId}}", "deposit"]
+            },
+            "description": "Fund the low-limit account so balance is sufficient (isolates the daily-limit check)."
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw - daily limit exceeded (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('message: Daily withdrawal limit exceeded', () => pm.expect(pm.response.json().message).to.eql('Daily withdrawal limit exceeded'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"200.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{limitAccountId}}/withdraw",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{limitAccountId}}", "withdraw"]
+            },
+            "description": "Balance is sufficient (500.00) but the amount (200.00) exceeds the daily limit (100.00) -> 422 Daily withdrawal limit exceeded."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
